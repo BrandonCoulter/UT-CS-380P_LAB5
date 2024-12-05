@@ -3,3 +3,6 @@ alias.bashrc
 hello_world_mpi
 reference/*
 utils/*
+output/*
+nbody
+*.txt
