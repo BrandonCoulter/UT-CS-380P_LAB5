@@ -62,8 +62,8 @@ int main(int argc, char **argv) {
         // Perform calculations for local particles (this is where the Barnes-Hut algorithm will go)
         for (int i = 0; i < local_num_bodies; i++) {
             // Example: Update positions (replace with actual Barnes-Hut logic)
-            local_particles[i].x_position += local_particles[i].x_velocity * dt;
-            local_particles[i].y_position += local_particles[i].y_velocity * dt;
+            local_particles[i].x_pos += local_particles[i].x_vel * dt;
+            local_particles[i].y_pos += local_particles[i].y_vel * dt;
         }
 
         // Gather updated particles back to the master process

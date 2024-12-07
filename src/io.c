@@ -47,11 +47,11 @@ Particle *read_input_file(const char *filename, int *num_bodies) {
     for (int i = 0; i < *num_bodies; i++) {
         fscanf(file, "%d %lf %lf %lf %lf %lf",
                &particles[i].index,
-               &particles[i].x_position,
-               &particles[i].y_position,
+               &particles[i].x_pos,
+               &particles[i].y_pos,
                &particles[i].mass,
-               &particles[i].x_velocity,
-               &particles[i].y_velocity);
+               &particles[i].x_vel,
+               &particles[i].y_vel);
     }
 
     fclose(file);
@@ -69,11 +69,11 @@ void write_output_file(const char *filename, Particle *particles, int num_bodies
     for (int i = 0; i < num_bodies; i++) {
         fprintf(file, "%d %.6lf %.6lf %.6lf %.6lf %.6lf\n",
                 particles[i].index,
-                particles[i].x_position,
-                particles[i].y_position,
+                particles[i].x_pos,
+                particles[i].y_pos,
                 particles[i].mass,
-                particles[i].x_velocity,
-                particles[i].y_velocity);
+                particles[i].x_vel,
+                particles[i].y_vel);
     }
 
     fclose(file);

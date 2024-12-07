@@ -3,15 +3,17 @@
 
 #include <stdio.h>
 
-// Struct to represent a particle
-typedef struct {
-    int index;
-    double x_position;
-    double y_position;
-    double mass;
-    double x_velocity;
-    double y_velocity;
-} Particle;
+#include "particle.h"
+
+// // Struct to represent a particle
+// typedef struct {
+//     int index;
+//     double x_position;
+//     double y_position;
+//     double mass;
+//     double x_velocity;
+//     double y_velocity;
+// } Particle;
 
 // Function prototypes
 void parse_arguments(int argc, char **argv, char **input_filename, char **output_filename, int *steps, double *theta, double *dt, int *visualization_flag);
