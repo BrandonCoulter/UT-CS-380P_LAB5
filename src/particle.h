@@ -10,14 +10,14 @@ typedef struct {
     double y_vel; // Y velocity
 } Particle;
 
-// Function prototypes
+// Functions related to particle creation, destruction, and modification
 Particle* create_particle(int index, double x_pos, double y_pos, double mass, double x_vel, double y_vel);
 void destroy_particle(Particle* particle);
+void update_particle(Particle* particle, double x_pos, double y_pos, double mass, double x_vel, double y_vel);
+
+// Debug functions
 void print_particle(const Particle* particle);
 
-
-
-// void custom_function(Particle* particle); // Example custom function prototype
 
 
 

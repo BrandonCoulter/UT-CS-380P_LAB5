@@ -1,21 +1,24 @@
+
 #include "io.h"
-#include <stdlib.h>
-#include <string.h>
 
-void parse_arguments(int argc, char **argv, char **input_filename, char **output_filename, int *steps, double *theta, double *dt, int *visualization_flag) {
+void argument_parse(int argc, char **argv, char **in_file_name, char **out_file_name, int *steps, double *theta, double *time_step, int *visualization_flag, int *print_debug_flag) {
     *visualization_flag = 0; // Default: visualization off
-
+    *print_debug_flag = 0;   // Default: output debug statements off
+ 
+    // Loop through CL arguments and parse them accordingly 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-i") == 0 && i + 1 < argc) {
-            *input_filename = argv[++i];
+            *in_file_name = argv[++i];
         } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
-            *output_filename = argv[++i];
+            *out_file_name = argv[++i];
         } else if (strcmp(argv[i], "-s") == 0 && i + 1 < argc) {
             *steps = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
             *theta = atof(argv[++i]);
         } else if (strcmp(argv[i], "-d") == 0 && i + 1 < argc) {
-            *dt = atof(argv[++i]);
+            *time_step = atof(argv[++i]);
+        } else if (strcmp(argv[i], "-D") == 0 && i + 1 < argc) {
+            *print_debug_flag = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-V") == 0) {
             *visualization_flag = 1;
         } else {
@@ -24,8 +27,20 @@ void parse_arguments(int argc, char **argv, char **input_filename, char **output
         }
     }
 
-    if (!*input_filename || !*output_filename || !*steps || !*theta || !*dt) {
-        fprintf(stderr, "Missing required arguments.\n");
+    if (!*in_file_name){
+        fprintf(stderr, "Missing required argument: -i <input file name>\n");
+        exit(EXIT_FAILURE);
+    } else if (!*out_file_name){
+        fprintf(stderr, "Missing required argument: -o <output file name>\n");
+        exit(EXIT_FAILURE);
+    } else if (!*steps){
+        fprintf(stderr, "Missing required argument: -s <number of steps>\n");
+        exit(EXIT_FAILURE);
+    } else if (!*theta){
+        fprintf(stderr, "Missing required argument: -t <theta value>\n");
+        exit(EXIT_FAILURE);
+    } else if (!*time_step){
+        fprintf(stderr, "Missing required argument: -0 <output file name>\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -67,7 +82,7 @@ void write_output_file(const char *filename, Particle *particles, int num_bodies
 
     fprintf(file, "%d\n", num_bodies);
     for (int i = 0; i < num_bodies; i++) {
-        fprintf(file, "%d %.6lf %.6lf %.6lf %.6lf %.6lf\n",
+        fprintf(file, "%d %lf %lf %lf %lf %lf\n",
                 particles[i].index,
                 particles[i].x_pos,
                 particles[i].y_pos,

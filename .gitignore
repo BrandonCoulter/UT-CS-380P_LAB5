@@ -5,4 +5,6 @@ reference/*
 utils/*
 output/*
 nbody
+nbody.dSYM/*
 *.txt
+.vscode/*

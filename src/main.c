@@ -4,96 +4,136 @@
 #include <string.h>
 
 #include "io.h"
+#include "tree.h"
 
-int main(int argc, char **argv) {
+#define DEFAULT_BOUNDARY_SIZE 4
+#define G 0.0001
+
+int main(int argc, char **argv){
+
+    // MPI Variables and Initilization
     int rank, size;
-
-    // MPI Initialization
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Command-line argument variables
-    char *input_filename = NULL;
-    char *output_filename = NULL;
-    int steps = 0, visualization_flag = 0;
-    double theta = 0.0, dt = 0.0;
+    // Cmd Line Arg Initilization
+    char *in_file = NULL;
+    char *out_file = NULL;
+    int step_count = 0, visualize = 0, dbg_print = 0;
+    double theta = 0, time_step = 0;
 
-    // Master process parses arguments
+    // Parse Command Line Arguments and Assign values
     if (rank == 0) {
-        parse_arguments(argc, argv, &input_filename, &output_filename, &steps, &theta, &dt, &visualization_flag);
+        argument_parse(argc, argv, &in_file, &out_file, &step_count, &theta, &time_step, &visualize, &dbg_print);
+
+        // Debug Printing Statements
+        if (dbg_print > 0) {
+            printf("\nParsed Command-Line Arguments and Settings:\n");
+            printf("Process ID: %d\n", rank);
+            printf("MPI Size: %d\n", size);
+            printf("Input File: %s\n", in_file);
+            printf("Output File: %s\n", out_file);
+            printf("Number of Steps: %d\n", step_count);
+            printf("Theta (MAC Threshold): %lf\n", theta);
+            printf("Time Step (dt): %lf\n", time_step);
+            printf("Visualization Flag: %s\n", visualize ? "Enabled" : "Disabled");
+            printf("Debug Printing Flag: %s | Log level: %d\n\n", dbg_print ? "Enabled" : "Disabled", dbg_print);
+        }
     }
 
-    // Broadcast input parameters to all processes
-    int input_filename_length = (rank == 0) ? strlen(input_filename) + 1 : 0;
-    MPI_Bcast(&input_filename_length, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (rank != 0) input_filename = (char *)malloc(input_filename_length * sizeof(char));
-    MPI_Bcast(input_filename, input_filename_length, MPI_CHAR, 0, MPI_COMM_WORLD);
+    // Barnes-hut variables (tree and particles)
+    int particle_count = 0;
+    Particle* particles;
 
-    int output_filename_length = (rank == 0) ? strlen(output_filename) + 1 : 0;
-    MPI_Bcast(&output_filename_length, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (rank != 0) output_filename = (char *)malloc(output_filename_length * sizeof(char));
-    MPI_Bcast(output_filename, output_filename_length, MPI_CHAR, 0, MPI_COMM_WORLD);
+    // Default center location and boundaries
+    double cen = DEFAULT_BOUNDARY_SIZE / 2;
+    Boundary default_bounds = create_bounds(DEFAULT_BOUNDARY_SIZE, cen, cen);
 
-    MPI_Bcast(&steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&theta, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    // Define the root node
+    BHTreeNode* root_node;
 
-    int num_bodies = 0;
-    Particle *particles = NULL;
-
-    // Master process reads input file
+    // In the main thread
     if (rank == 0) {
-        particles = read_input_file(input_filename, &num_bodies);
+        // Read the input file and return a list of particles
+        particles = read_input_file(in_file, &particle_count);
+
+        // Debug Print Statements
+        if (dbg_print >= 5) {
+            printf("Particles: %d\n", particle_count);
+            for(int i = 0; i < particle_count; i++) {
+                Particle* p = &particles[i];
+
+                // printf("Particle #%d: (%e, %e) | M: %e | (%e, %e)\n", p->index, p->x_pos, p->y_pos, p->mass, p->x_vel, p->y_vel);
+                printf("Particle #%d: (%lf, %lf) | M: %e | (%e, %e)\n", p->index, p->x_pos, p->y_pos, p->mass, p->x_vel, p->y_vel);
+
+            }
+        }
     }
 
-    // Broadcast number of bodies to all processes
-    MPI_Bcast(&num_bodies, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    // Run Barnes-Hut nbody seqientially
+    if (size == 1) {
+        // Debug Print statement
+        if (dbg_print > 0) printf("Running seqientially\n");
 
-    // Scatter particles to all processes
-    int local_num_bodies = num_bodies / size;
-    Particle *local_particles = (Particle *)malloc(local_num_bodies * sizeof(Particle));
-    MPI_Scatter(particles, local_num_bodies * sizeof(Particle), MPI_BYTE,
-                local_particles, local_num_bodies * sizeof(Particle), MPI_BYTE,
-                0, MPI_COMM_WORLD);
+        //TODO: Run Seqiential Barnes-Hut Algorithm
 
-    // Main simulation loop (simplified)
-    for (int step = 0; step < steps; step++) {
-        // Perform calculations for local particles (this is where the Barnes-Hut algorithm will go)
-        for (int i = 0; i < local_num_bodies; i++) {
-            // Example: Update positions (replace with actual Barnes-Hut logic)
-            local_particles[i].x_pos += local_particles[i].x_vel * dt;
-            local_particles[i].y_pos += local_particles[i].y_vel * dt;
+        // Conduct the algorithm for n-steps 
+        for (int step = 0; step < step_count; step++) {
+            if (dbg_print > 0) printf("Step %d out of %d\n", step, step_count);
+
+            // Generate the root node
+            BHTreeNode* root_node = create_tree_node(default_bounds);
+
+            if (dbg_print >= 5) print_node_data(root_node);
+
+            // Build the BH Quadtree
+            for (int p = 0; p < particle_count; p++) {
+                printf("Inserting Particle #%d\n", particles[p].index);
+                if (!insert_node(root_node, &particles[p])) {
+                    printf("Failed to insert particle #%d\n", particles[p].index);
+                } else {
+                    printf("Successfully inserted particle #%d\n\n", particles[p].index);
+                }
+            }
+
+            // Compute the forces on each particle
+            for (int p = 0; p < particle_count; p++) {
+                compute_force(root_node, &particles[p], theta, time_step);
+            }
+
+            for (int p = 0; p < particle_count; p++) {
+                particles[p].x_pos += particles[p].x_vel * time_step;
+                particles[p].y_pos += particles[p].y_vel * time_step;
+            }
+
         }
 
-        // Gather updated particles back to the master process
-        MPI_Gather(local_particles, local_num_bodies * sizeof(Particle), MPI_BYTE,
-                   particles, local_num_bodies * sizeof(Particle), MPI_BYTE,
-                   0, MPI_COMM_WORLD);
+    }
+    // Run Barnes-Hut in Parallel with MPI
+    else {
+        // Broadcast input parameters to all processes
+        int in_file_len = (rank == 0) ? strlen(in_file) + 1 : 0;
+        MPI_Bcast(&in_file_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        if (rank != 0) in_file = (char *)malloc(in_file_len * sizeof(char));
+        MPI_Bcast(in_file, in_file_len, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+        int out_file_len = (rank == 0) ? strlen(out_file) + 1 : 0;
+        MPI_Bcast(&out_file_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        if (rank != 0) out_file = (char *)malloc(out_file_len * sizeof(char));
+        MPI_Bcast(out_file, out_file_len, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+        MPI_Bcast(&step_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&theta, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&time_step, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&dbg_print, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
 
-    if (rank == 0) { // Print only from the master process in MPI
-        printf("Parsed Command-Line Arguments and Settings:\n");
-        printf("Input File: %s\n", input_filename);
-        printf("Output File: %s\n", output_filename);
-        printf("Number of Steps: %d\n", steps);
-        printf("Theta (MAC Threshold): %lf\n", theta);
-        printf("Time Step (dt): %lf\n", dt);
-        printf("Visualization Flag: %s\n", visualization_flag ? "Enabled" : "Disabled");
-    }
 
-
-    // Master process writes the output file
-    if (rank == 0) {
-        write_output_file(output_filename, particles, num_bodies);
-        free(particles);
-    }
-
-    // Cleanup
-    free(local_particles);
+    // Cleanup Memory and MPI
     if (rank != 0) {
-        free(input_filename);
-        free(output_filename);
+        free(in_file);
+        free(out_file);
     }
 
     MPI_Finalize();
