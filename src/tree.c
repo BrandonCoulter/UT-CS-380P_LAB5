@@ -34,7 +34,14 @@ BHTreeNode* create_tree_node (Boundary bounds) {
     return node;
 }
 
+// Insert nodes into the Quad tree
 int insert_node(BHTreeNode* node, Particle* particle) {
+    
+    // This particle is lost
+    if (particle->mass < 0){
+        return 0;
+    }
+
     // Check that the particle is contained within the bounds of the node
     if (!contains(node, particle)) {
         return 0; // Particle is outside this node's boundary
@@ -51,19 +58,18 @@ int insert_node(BHTreeNode* node, Particle* particle) {
         return 1;
     }
 
-    // Update the aggregated info to include this particle
-    // TODO: Implement update_node(node, particle);
+    // Update the node data to account for the new particle
+    // update_node_data(node, particle);
 
     // Subdivide and redistribute if necessary
     if (!node->is_sub_divided) {
         subdivide(node);
 
 
-        printf("Subdivided node, reinserting particle #%d\n", node->particle->index);
+        // printf("Subdivided node, reinserting particle #%d\n", node->particle->index);
         // Redistribute the existing particle
         Particle* existing_particle = node->particle;
         node->particle = NULL; // Clear parent node's particle reference
-        node->count = 0;       // Reset the count
 
         if (!insert_node(node->NW, existing_particle) &&
             !insert_node(node->NE, existing_particle) &&
@@ -72,7 +78,11 @@ int insert_node(BHTreeNode* node, Particle* particle) {
             printf("Error redistributing particle #%d during subdivision.\n", existing_particle->index);
         }
         free(existing_particle); // Free the copy
+        
+        // Aggreigate the node data after subdivision
     }
+
+    recalculate_node_data(node);
 
     // Attempt to insert into one of the child nodes
     if (insert_node(node->NW, particle)) return 1;
@@ -84,7 +94,6 @@ int insert_node(BHTreeNode* node, Particle* particle) {
     return 0;
 }
 
-
 // Check that a particle is contained within the bounds of a node
 int contains(BHTreeNode* node, Particle* particle) {
     return (
@@ -94,11 +103,79 @@ int contains(BHTreeNode* node, Particle* particle) {
         particle->y_pos <= node->boundary.center->y_pos + node->boundary.half_size);
 }
 
-//TODO: COMPLETE THIS FUNCTION
 // Update the mass and centor of mass
-void update_node(BHTreeNode* node, Particle* particle) {
+void update_node_data(BHTreeNode* node, Particle* particle) {
+    // Get the new mass of the subtree rooted at this node
+    double new_total_mass = node->total_mass + particle->mass;
+
+    // Find the new center of mass
+    node->center_mass->x_pos = (node->center_mass->x_pos * node->total_mass + particle->x_pos * particle->mass) / new_total_mass;
+    node->center_mass->y_pos = (node->center_mass->y_pos * node->total_mass + particle->y_pos * particle->mass) / new_total_mass;
+
+    // Set the new total mass for the node
+    node->total_mass = new_total_mass;
+    
     return;
 }
+
+// Complete a node recalculation of data
+void recalculate_node_data(BHTreeNode* node) {
+    // If the node is a leaf, its CoM is the particle's position
+    if (!node->is_sub_divided) {
+        if (node->particle != NULL) {
+            node->center_mass->x_pos = node->particle->x_pos;
+            node->center_mass->y_pos = node->particle->y_pos;
+            node->total_mass = node->particle->mass;
+        } else {
+            // No particle in this node
+            node->total_mass = 0;
+            node->center_mass->x_pos = 0;
+            node->center_mass->y_pos = 0;
+        }
+        return;
+    }
+
+    // Internal node: Aggregate mass and CoM from children
+    double total_mass = 0.0;
+    double weighted_x = 0.0;
+    double weighted_y = 0.0;
+
+    if (node->NW) {
+        recalculate_node_data(node->NW); // Ensure child properties are up-to-date
+        total_mass += node->NW->total_mass;
+        weighted_x += node->NW->center_mass->x_pos * node->NW->total_mass;
+        weighted_y += node->NW->center_mass->y_pos * node->NW->total_mass;
+    }
+    if (node->NE) {
+        recalculate_node_data(node->NE);
+        total_mass += node->NE->total_mass;
+        weighted_x += node->NE->center_mass->x_pos * node->NE->total_mass;
+        weighted_y += node->NE->center_mass->y_pos * node->NE->total_mass;
+    }
+    if (node->SW) {
+        recalculate_node_data(node->SW);
+        total_mass += node->SW->total_mass;
+        weighted_x += node->SW->center_mass->x_pos * node->SW->total_mass;
+        weighted_y += node->SW->center_mass->y_pos * node->SW->total_mass;
+    }
+    if (node->SE) {
+        recalculate_node_data(node->SE);
+        total_mass += node->SE->total_mass;
+        weighted_x += node->SE->center_mass->x_pos * node->SE->total_mass;
+        weighted_y += node->SE->center_mass->y_pos * node->SE->total_mass;
+    }
+
+    // Update the node's total mass and center of mass
+    if (total_mass > 0) {
+        node->center_mass->x_pos = weighted_x / total_mass;
+        node->center_mass->y_pos = weighted_y / total_mass;
+    } else {
+        node->center_mass->x_pos = 0.0;
+        node->center_mass->y_pos = 0.0;
+    }
+    node->total_mass = total_mass;
+}
+
 
 // Subdivide the node
 void subdivide(BHTreeNode* node) {
@@ -129,10 +206,71 @@ void subdivide(BHTreeNode* node) {
     node->is_sub_divided = 1;
 }
 
-//TODO: COMPLETE THIS FUNCTION
 // Compute for the forces on a particle
-void compute_force(BHTreeNode* node, Particle* particle, double theta, double time_step) {
-    printf("Computing force for Particle #%d\n", particle->index);
+void compute_force(BHTreeNode* node, Particle* particle, double theta) {
+
+    // Do not account for this lost particle
+    if (particle->mass < 0){
+        return;
+    }
+
+    // printf("Computing force for Particle #%d\n", particle->index);
+
+    if (node == NULL) {
+        // printf("Node is NULL\n");
+        return;
+    }
+    if (node->count == 0){
+        // printf("count is 0: Node->count == %d\n", node->count);
+        return; // Node is empty or none existent
+    }
+
+    // calculate the vector components distances
+    double dx = node->center_mass->x_pos - particle->x_pos;
+    double dy = node->center_mass->y_pos - particle->y_pos;
+
+    double distance = sqrt((dx * dx) + (dy * dy));
+
+    // Ensure that the distance is no less than the RLIMIT to prevent infinite forces
+    if (distance < RLIMIT) {
+        distance = RLIMIT;
+    }
+
+    // If this is a leaf (I.e only one particle)
+    if (!node->is_sub_divided && node->particle != NULL){
+        // Skip the particle if the particle is itself
+        if (node->particle == particle) {
+            // printf("Particle is Particle\n");
+            return; 
+        }
+
+        // Compute the forces on the body vector components
+        particle->x_force += (G * node->particle->mass * particle->mass * dx) / (distance * distance * distance);
+        particle->y_force += (G * node->particle->mass * particle->mass * dy) / (distance * distance * distance);
+
+        // printf("Force Components Calculated for Particle #%d: Force: %lf, %lf\n", particle->index, particle->x_force, particle->y_force);
+
+        return;
+    }
+
+    // Check MAC criteria
+    double size = node->boundary.size;
+    if ((size / distance) < theta) {
+        // Compute the forces on the body vector components with the node
+        particle->x_force += (G * node->total_mass * particle->mass * dx) / (distance * distance * distance);
+        particle->y_force += (G * node->total_mass * particle->mass * dy) / (distance * distance * distance);
+
+        // printf("Force Components Calculated (USING MAC) for Particle #%d: Force: %lf, %lf\n", particle->index, particle->x_force, particle->y_force);
+
+        return;
+    }
+
+    // Recursively Compute node forces
+    compute_force(node->NW, particle, theta);
+    compute_force(node->NE, particle, theta);
+    compute_force(node->SW, particle, theta);
+    compute_force(node->SE, particle, theta);
+
 }
 
 // Debug print for BHTreeTypes

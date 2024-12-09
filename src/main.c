@@ -6,8 +6,7 @@
 #include "io.h"
 #include "tree.h"
 
-#define DEFAULT_BOUNDARY_SIZE 4
-#define G 0.0001
+#define DEFAULT_BOUNDARY_SIZE 4.0
 
 int main(int argc, char **argv){
 
@@ -76,8 +75,6 @@ int main(int argc, char **argv){
         // Debug Print statement
         if (dbg_print > 0) printf("Running seqientially\n");
 
-        //TODO: Run Seqiential Barnes-Hut Algorithm
-
         // Conduct the algorithm for n-steps 
         for (int step = 0; step < step_count; step++) {
             if (dbg_print > 0) printf("Step %d out of %d\n", step, step_count);
@@ -89,23 +86,35 @@ int main(int argc, char **argv){
 
             // Build the BH Quadtree
             for (int p = 0; p < particle_count; p++) {
-                printf("Inserting Particle #%d\n", particles[p].index);
-                if (!insert_node(root_node, &particles[p])) {
-                    printf("Failed to insert particle #%d\n", particles[p].index);
-                } else {
-                    printf("Successfully inserted particle #%d\n\n", particles[p].index);
+                int success = insert_node(root_node, &particles[p]);
+                if (dbg_print >= 5) {
+                    printf("Inserting Particle #%d\n", particles[p].index);
+                    if (!success) {
+                        printf("Failed to insert particle #%d\n", particles[p].index);
+                    } else {
+                        printf("Successfully inserted particle #%d\n\n", particles[p].index);
+                    }
+
                 }
             }
 
             // Compute the forces on each particle
             for (int p = 0; p < particle_count; p++) {
-                compute_force(root_node, &particles[p], theta, time_step);
+                // Reset particle force components
+                particles[p].x_force = 0.0;
+                particles[p].y_force = 0.0;
+                
+                // Compute new forces
+                compute_force(root_node, &particles[p], theta);
             }
 
+            // Update the particles based on forces from other particles
             for (int p = 0; p < particle_count; p++) {
-                particles[p].x_pos += particles[p].x_vel * time_step;
-                particles[p].y_pos += particles[p].y_vel * time_step;
+                update_particle(&particles[p], time_step, DEFAULT_BOUNDARY_SIZE);
             }
+
+            // Clean the tree and memory
+            destroy_tree_node(root_node);
 
         }
 
@@ -130,8 +139,12 @@ int main(int argc, char **argv){
     }
 
 
+    write_output_file(out_file, particles, particle_count);
+
+
     // Cleanup Memory and MPI
     if (rank != 0) {
+        free(particles);
         free(in_file);
         free(out_file);
     }

@@ -32,10 +32,10 @@ def main():
     for input_file in inputs:
         num = re.search(r"nb-(\d+)", input_file).group(1)
         for step in steps:
-            cmd = f"mpirun -n 4 ./nbody -s {step} -i ./input/{input_file} -t 0.5 -d 0.005 -o output.txt"
+            cmd = f"mpirun -n 1 ./nbody -s {step} -i ./input/{input_file} -t 0.5 -d 0.005 -o output.txt"
 
             if subprocess.run(cmd, shell=True).returncode == 0:
-                expected = f"output/nb-{num}-{step}-steps.results.txt"
+                expected = f"expected_output/nb-{num}-{step}-steps.results.txt"
                 result = (
                     "PASS"
                     if os.path.exists(expected)

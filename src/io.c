@@ -82,7 +82,7 @@ void write_output_file(const char *filename, Particle *particles, int num_bodies
 
     fprintf(file, "%d\n", num_bodies);
     for (int i = 0; i < num_bodies; i++) {
-        fprintf(file, "%d %lf %lf %lf %lf %lf\n",
+        fprintf(file, "%d %.17lf %.17lf %.17lf %.17lf %.17lf\n",
                 particles[i].index,
                 particles[i].x_pos,
                 particles[i].y_pos,

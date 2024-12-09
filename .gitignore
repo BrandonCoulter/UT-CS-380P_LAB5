@@ -8,3 +8,6 @@ nbody
 nbody.dSYM/*
 *.txt
 .vscode/*
+.DS_Store
+expected_output/*
+

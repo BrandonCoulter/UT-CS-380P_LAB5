@@ -1,10 +1,14 @@
 #ifndef TREE_H
 #define TREE_H
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "particle.h"
+
+#define G 0.0001
+#define RLIMIT 0.03
 
 // Forward declaration of BHTreeNode
 typedef struct BHTreeNode BHTreeNode;
@@ -17,10 +21,6 @@ typedef struct {
 } Point;
 
 typedef struct {
-    // double x_start;
-    // double y_start;
-    // double x_end;
-    // double y_end;
     double size;      // Full length of one side
     double half_size; // Half the length of one size
     Point* center;     // Center point position of the boundary 
@@ -51,9 +51,10 @@ struct BHTreeNode
 BHTreeNode* create_tree_node(Boundary bounds);
 int insert_node(BHTreeNode* node, Particle* particle);
 int contains(BHTreeNode* node, Particle* particle);
-void update_node(BHTreeNode* node, Particle* particle);
+void update_node_data(BHTreeNode* node, Particle* particle);
+void recalculate_node_data(BHTreeNode* node);
 void subdivide(BHTreeNode* node);
-void compute_force(BHTreeNode* node, Particle* particle, double theta, double time_step);
+void compute_force(BHTreeNode* node, Particle* particle, double theta);
 void print_node_data(BHTreeNode* node);
 void destroy_tree_node(BHTreeNode* node);
 
