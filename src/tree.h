@@ -52,7 +52,7 @@ BHTreeNode* create_tree_node(Boundary bounds);
 int insert_node(BHTreeNode* node, Particle* particle);
 int contains(BHTreeNode* node, Particle* particle);
 void update_node_data(BHTreeNode* node, Particle* particle);
-void recalculate_node_data(BHTreeNode* node);
+void aggregate_data(BHTreeNode* node);
 void subdivide(BHTreeNode* node);
 void compute_force(BHTreeNode* node, Particle* particle, double theta);
 void print_node_data(BHTreeNode* node);

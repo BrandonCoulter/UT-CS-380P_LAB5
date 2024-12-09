@@ -58,9 +58,6 @@ int insert_node(BHTreeNode* node, Particle* particle) {
         return 1;
     }
 
-    // Update the node data to account for the new particle
-    // update_node_data(node, particle);
-
     // Subdivide and redistribute if necessary
     if (!node->is_sub_divided) {
         subdivide(node);
@@ -80,9 +77,8 @@ int insert_node(BHTreeNode* node, Particle* particle) {
         free(existing_particle); // Free the copy
         
         // Aggreigate the node data after subdivision
+        aggregate_data(node);
     }
-
-    recalculate_node_data(node);
 
     // Attempt to insert into one of the child nodes
     if (insert_node(node->NW, particle)) return 1;
@@ -118,8 +114,7 @@ void update_node_data(BHTreeNode* node, Particle* particle) {
     return;
 }
 
-// Complete a node recalculation of data
-void recalculate_node_data(BHTreeNode* node) {
+void aggregate_data(BHTreeNode* node) {
     // If the node is a leaf, its CoM is the particle's position
     if (!node->is_sub_divided) {
         if (node->particle != NULL) {
@@ -141,25 +136,25 @@ void recalculate_node_data(BHTreeNode* node) {
     double weighted_y = 0.0;
 
     if (node->NW) {
-        recalculate_node_data(node->NW); // Ensure child properties are up-to-date
+        aggregate_data(node->NW); // Ensure child properties are up-to-date
         total_mass += node->NW->total_mass;
         weighted_x += node->NW->center_mass->x_pos * node->NW->total_mass;
         weighted_y += node->NW->center_mass->y_pos * node->NW->total_mass;
     }
     if (node->NE) {
-        recalculate_node_data(node->NE);
+        aggregate_data(node->NE);
         total_mass += node->NE->total_mass;
         weighted_x += node->NE->center_mass->x_pos * node->NE->total_mass;
         weighted_y += node->NE->center_mass->y_pos * node->NE->total_mass;
     }
     if (node->SW) {
-        recalculate_node_data(node->SW);
+        aggregate_data(node->SW);
         total_mass += node->SW->total_mass;
         weighted_x += node->SW->center_mass->x_pos * node->SW->total_mass;
         weighted_y += node->SW->center_mass->y_pos * node->SW->total_mass;
     }
     if (node->SE) {
-        recalculate_node_data(node->SE);
+        aggregate_data(node->SE);
         total_mass += node->SE->total_mass;
         weighted_x += node->SE->center_mass->x_pos * node->SE->total_mass;
         weighted_y += node->SE->center_mass->y_pos * node->SE->total_mass;
@@ -175,7 +170,6 @@ void recalculate_node_data(BHTreeNode* node) {
     }
     node->total_mass = total_mass;
 }
-
 
 // Subdivide the node
 void subdivide(BHTreeNode* node) {

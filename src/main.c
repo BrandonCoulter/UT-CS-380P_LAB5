@@ -98,6 +98,8 @@ int main(int argc, char **argv){
                 }
             }
 
+            aggregate_data(root_node);
+
             // Compute the forces on each particle
             for (int p = 0; p < particle_count; p++) {
                 // Reset particle force components
