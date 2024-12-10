@@ -10,11 +10,15 @@
 
 int main(int argc, char **argv){
 
+
     // MPI Variables and Initilization
     int rank, size;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+    
+    // Start the timer
+    double start_time = MPI_Wtime();
 
     // Cmd Line Arg Initilization
     char *in_file = NULL;
@@ -98,7 +102,7 @@ int main(int argc, char **argv){
                 }
             }
 
-            aggregate_data(root_node);
+            // aggregate_data(root_node);
 
             // Compute the forces on each particle
             for (int p = 0; p < particle_count; p++) {
@@ -151,6 +155,10 @@ int main(int argc, char **argv){
         free(out_file);
     }
 
+    double end_time = MPI_Wtime();
+    printf("%f\n", end_time - start_time);
+
     MPI_Finalize();
+
     return 0;
 }

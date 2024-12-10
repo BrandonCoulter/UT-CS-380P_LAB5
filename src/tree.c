@@ -62,8 +62,6 @@ int insert_node(BHTreeNode* node, Particle* particle) {
     if (!node->is_sub_divided) {
         subdivide(node);
 
-
-        // printf("Subdivided node, reinserting particle #%d\n", node->particle->index);
         // Redistribute the existing particle
         Particle* existing_particle = node->particle;
         node->particle = NULL; // Clear parent node's particle reference
@@ -73,12 +71,18 @@ int insert_node(BHTreeNode* node, Particle* particle) {
             !insert_node(node->SW, existing_particle) &&
             !insert_node(node->SE, existing_particle)) {
             printf("Error redistributing particle #%d during subdivision.\n", existing_particle->index);
+            return 0;
         }
         free(existing_particle); // Free the copy
-        
-        // Aggreigate the node data after subdivision
-        aggregate_data(node);
     }
+
+    // Update the total mass and center of mass before inserting
+    double old_mass = node->total_mass;
+    node->total_mass += particle->mass;
+
+    // Update center of mass using the old total mass
+    node->center_mass->x_pos = (node->center_mass->x_pos * old_mass + particle->x_pos * particle->mass) / node->total_mass;
+    node->center_mass->y_pos = (node->center_mass->y_pos * old_mass + particle->y_pos * particle->mass) / node->total_mass;
 
     // Attempt to insert into one of the child nodes
     if (insert_node(node->NW, particle)) return 1;
@@ -90,13 +94,15 @@ int insert_node(BHTreeNode* node, Particle* particle) {
     return 0;
 }
 
+
 // Check that a particle is contained within the bounds of a node
 int contains(BHTreeNode* node, Particle* particle) {
     return (
         particle->x_pos >= node->boundary.center->x_pos - node->boundary.half_size &&
-        particle->x_pos <= node->boundary.center->x_pos + node->boundary.half_size &&
+        particle->x_pos < node->boundary.center->x_pos + node->boundary.half_size &&
         particle->y_pos >= node->boundary.center->y_pos - node->boundary.half_size &&
-        particle->y_pos <= node->boundary.center->y_pos + node->boundary.half_size);
+        particle->y_pos < node->boundary.center->y_pos + node->boundary.half_size);
+
 }
 
 // Update the mass and centor of mass
@@ -187,15 +193,6 @@ void subdivide(BHTreeNode* node) {
     node->NE = create_tree_node(create_bounds(sub_divided_size, node->boundary.center->x_pos + sub_divided_center_size, node->boundary.center->y_pos - sub_divided_center_size));
     node->SW = create_tree_node(create_bounds(sub_divided_size, node->boundary.center->x_pos - sub_divided_center_size, node->boundary.center->y_pos + sub_divided_center_size));
     node->SE = create_tree_node(create_bounds(sub_divided_size, node->boundary.center->x_pos + sub_divided_center_size, node->boundary.center->y_pos + sub_divided_center_size));
-
-    // printf("Node->NW: \n");
-    // print_node_data(node->NW);
-    // printf("Node->NE: \n");
-    // print_node_data(node->NE);
-    // printf("Node->SW: \n");
-    // print_node_data(node->SW);
-    // printf("Node->SE: \n");
-    // print_node_data(node->SE);
 
     node->is_sub_divided = 1;
 }
