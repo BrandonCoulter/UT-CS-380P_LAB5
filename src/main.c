@@ -75,7 +75,7 @@ int main(int argc, char **argv){
     }
 
     // Run Barnes-Hut nbody seqientially
-    if (size == 1) {
+    if (size > 0) {
         // Debug Print statement
         if (dbg_print > 0) printf("Running seqientially\n");
 
@@ -145,7 +145,7 @@ int main(int argc, char **argv){
     }
 
 
-    write_output_file(out_file, particles, particle_count);
+    if (rank == 0) write_output_file(out_file, particles, particle_count);
 
 
     // Cleanup Memory and MPI
